@@ -1,0 +1,9 @@
+{
+    "host": "{{HOST}}",
+    "precedingPath": "/microservice/api/v1",
+    "prependTag": "Microservice ",
+    "mapHeader": [{
+        "key": "Content-Language",
+        "value": "{{CONTENT_LANGUAGE}}"
+    }]
+}

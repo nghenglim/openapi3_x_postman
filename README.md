@@ -4,9 +4,10 @@ The original import function in postman is not working as expected, this repo cu
 ## Some feature that postman collection dont have
 - group to different folder with tag
 - use example value for query instead of `<string>`
+- map header value to your postman environment variable
 
 ## Usage
-cargo run -- testfolder/microservice-swagger.json --host {{HOST}} --preceding_path /microservice/api/v1 --prepend_tag "Microservice " -o testfolder/postmancollection.json
+cargo run -- -c config.example.json -o testfolder/postmancollection.json testfolder/microservice-swagger.json
 
 ## Note
 This might not feature complete, we can slowly make it support more

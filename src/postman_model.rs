@@ -101,10 +101,20 @@ fn get_value_to_string(example_value: Option<Value>) -> String {
         None => "".to_owned(),
     }
 }
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PostmanConvertOption {
     pub host: String,
     pub preceding_path: String,
     pub prepend_tag: String,
+    pub map_header: Vec<PostmanConvertOptionMapHeader>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostmanConvertOptionMapHeader {
+    key: String,
+    value: String,
 }
 pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: PostmanConvertOption) -> PostmanCollection2c1 {
     let mut item_base: Vec<PostmanCollectionItem> = Vec::new();
@@ -129,10 +139,18 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                         value: example_value,
                     })
                 } else if parameter._in == "header" {
+                    let lc_name: String = parameter.name.clone().to_lowercase();
+                    let mut the_value: Option<String> = Some(example_value);
+                    for kv in postman_convert_option.map_header.clone() {
+                        if kv.key.clone().to_lowercase() == lc_name {
+                            the_value = Some(kv.value);
+                            break;
+                        }
+                    }
                     header_vec.push(PostmanCollectionHeader {
                         key: parameter.name.clone(),
                         _type: "text".into(),
-                        value: example_value,
+                        value: the_value.unwrap(),
                     })
                 } else if parameter._in == "path" {
                     variable_vec.push(PostmanCollectionVariable {
@@ -168,7 +186,7 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
             for i in 0..paths.len() {
                 let the_path = paths[i].clone();
                 if paths[i].starts_with("{") {
-                    paths[i] = the_path[1..(the_path.len() - 1)].to_owned();
+                    paths[i] = format!("{}{}", ':', the_path[1..(the_path.len() - 1)].to_owned());
                 }
             }
             let variable = if variable_vec.len() > 0 {
@@ -180,9 +198,9 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                 name: path.clone(),
                 request: PostmanCollectionRequest {
                     url: PostmanCollectionUrl {
-                        raw: format!("{}/{}", postman_convert_option.host.clone(), nonabsolute_path),
+                        raw: format!("{}/{}", postman_convert_option.host.clone(), paths.join("/")),
                         host: vec![postman_convert_option.host.clone()],
-                        path: nonabsolute_path.clone().split('/').map(|s| s.to_owned()).collect(),
+                        path: paths,
                         query: query,
                         variable: variable,
                     },

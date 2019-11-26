@@ -17,24 +17,21 @@ struct Cli {
     file: String,
     #[structopt(short = "o", long = "output")]
     output: String,
-    #[structopt(long = "host")]
-    host: String,
-    #[structopt(long = "preceding_path", default_value = "")]
-    preceding_path: String,
-    #[structopt(long = "prepend_tag", default_value = "")]
-    prepend_tag: String,
+    #[structopt(short ="c", long = "config_file")]
+    config_file: Option<String>,
 }
 
 fn main() -> CliResult {
     let args = Cli::from_args();
     let json: String = std::fs::read_to_string(&args.file).unwrap();
     let openapi: OpenApi3 = serde_json::from_str(&json)?;
-    // std::fs::write("openapi.json", serde_json::to_string(&openapi)?)?;
-    let postman_collection = to_postman_colletion_2c1(openapi, PostmanConvertOption {
-        host: args.host,
-        preceding_path: args.preceding_path,
-        prepend_tag: args.prepend_tag,
-    });
+    let postman_convert_option: PostmanConvertOption = if args.config_file.is_some() {
+        let option: String = std::fs::read_to_string(&args.config_file.unwrap()).unwrap();
+        serde_json::from_str(&option)?
+    } else {
+        PostmanConvertOption::default()
+    };
+    let postman_collection = to_postman_colletion_2c1(openapi, postman_convert_option);
     let postman_str: String = serde_json::to_string(&postman_collection)?;
     std::fs::write(args.output, postman_str)?;
     Ok(())

@@ -1,47 +1,156 @@
 use std::collections::BTreeMap;
 use serde_json::value::Value;
-use crate::model::{OpenApi3, OpenApi3Schema, OpenApi3OperationMethodRequestBodyContent};
+use crate::model::{OpenApi3, OpenApi3Schema, OpenApi3ConvertOption, OpenApi3OperationMethodRequestBodyContent, OpenApi3OperationMethodRequestBodyJson, OpenApi3OperationMethodRequestBody, OpenApi3Parameter, OpenApi3SchemaStringType, OpenApi3SchemaObjectType, OpenApi3OperationMethodSecurity};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollection2c1 {
-    info: PostmanCollectionInfo,
-    item: Vec<PostmanCollectionItem>
+    pub info: PostmanCollectionInfo,
+    pub item: Vec<PostmanCollectionItem>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionInfo {
-    name: String,
-    description: String,
-    schema: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub schema: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostmanCollectionItemInner {
-    name: String,
-    request: PostmanCollectionRequest,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct PostmanCollectionItemInner {
+//     name: String,
+//     request: PostmanCollectionRequest,
+// }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionItem {
-    name: String,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    item: Option<Box<Vec<PostmanCollectionItemInner>>>,
+    pub item: Option<Box<Vec<PostmanCollectionItem>>>,
+    pub request: Option<PostmanCollectionRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response: Option<Vec<PostmanCollectionResponse>>
     // request: PostmanCollectionRequest,
     // response: Vec<serde_json::Value>,
     // #[serde(rename = "protocolProfileBehavior")]
     // protocol_profile_behavior: serde_json::Value
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostmanCollectionResponse {
+    pub status: Option<String>,
+    pub code: Option<u32>,
+    pub body: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionRequest {
-    method: String,
-    header: Vec<PostmanCollectionHeader>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    body: Option<PostmanCollectionBody>,
-    url: PostmanCollectionUrl,
+    pub auth: Option<PostmanCollectionRequestAuth>,
+    pub method: String,
+    pub header: Vec<PostmanCollectionHeader>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<PostmanCollectionBody>,
+    pub url: PostmanCollectionUrl,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostmanCollectionRequestAuth {
+    #[serde(rename = "type")]
+    _type: String,
+    bearer: Option<Vec<PostmanCollectionRequestAuthItem>>,
+    basic: Option<Vec<PostmanCollectionRequestAuthItem>>
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostmanCollectionRequestAuthItem {
+    key: String,
+    value: String,
+    #[serde(rename = "type")]
+    _type: String,
+}
+
+impl PostmanCollectionRequest {
+    pub fn oa3_get_securities(&self) -> OpenApi3OperationMethodSecurity {
+        if let Some(auth) = &self.auth {
+            let mut bmap = BTreeMap::new();
+            if auth.bearer.is_some() {
+                bmap.insert(auth._type.clone(), Vec::new());
+            }
+            Some(vec![bmap])
+        } else {
+            None
+        }
+    }
+    pub fn oa3_get_request_body(&self) -> Option<OpenApi3OperationMethodRequestBody> {
+        if let Some(body) = &self.body {
+            Some(OpenApi3OperationMethodRequestBody {
+                content: OpenApi3OperationMethodRequestBodyContent::ApplicationJson(OpenApi3OperationMethodRequestBodyJson {
+                    schema: OpenApi3Schema::ObjectType(OpenApi3SchemaObjectType {
+                        properties: BTreeMap::new(),
+                        example: None,
+                    }),
+                    example: Some(Value::String(body.raw.clone())),
+                })
+            })
+        } else {
+            None
+        }
+    }
+    pub fn oa3_get_parameters_for_header_query(&self, convert_option: &OpenApi3ConvertOption) -> Vec<OpenApi3Parameter> {
+        let mut params: Vec<OpenApi3Parameter> = Vec::new();
+        if let Some(urlquery) = &self.url.query {
+            for query in urlquery {
+                let example = match &query.value {
+                    Value::String(s) => {
+                        let mut val = Some(serde_json::value::Value::String(s.clone()));
+                        for map in &convert_option.mapping {
+                            if &map.key == s {
+                                val = Some(serde_json::value::Value::String(map.value.clone()));
+                            }
+                        }
+                        val
+                    },
+                    _ => None,
+                };
+                params.push(OpenApi3Parameter {
+                    description: String::from(""),
+                    _in: String::from("query"),
+                    name: query.key.clone(),
+                    required: false,
+                    schema: OpenApi3Schema::StringType(OpenApi3SchemaStringType {
+                        _type: String::from("string"),
+                        _enum: None,
+                        default: None,
+                        example: example,
+                    })
+                });
+            }
+        }
+        for headeritem in &self.header {
+            let mut val = Some(serde_json::value::Value::String(headeritem.value.clone()));
+            for map in &convert_option.mapping {
+                if map.key == headeritem.key {
+                    val = Some(serde_json::value::Value::String(map.value.clone()));
+                }
+            }
+            params.push(OpenApi3Parameter {
+                description: String::from(""),
+                _in: String::from("header"),
+                name: headeritem.key.clone(),
+                required: false,
+                schema: OpenApi3Schema::StringType(OpenApi3SchemaStringType {
+                    _type: String::from("string"),
+                    _enum: None,
+                    default: None,
+                    example: val,
+                })
+            });
+        }
+        params
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionHeader {
     key: String,
     #[serde(rename = "type")]
-    _type: String,
+    _type: Option<String>,
     value: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,8 +172,8 @@ pub struct PostmanCollectionBodyOptionsRaw {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionVariable {
-    key: String,
-    value: String,
+    pub key: String,
+    pub value: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionUrl {
@@ -77,10 +186,49 @@ pub struct PostmanCollectionUrl {
     variable: Option<Vec<PostmanCollectionVariable>>
 }
 
+impl PostmanCollectionUrl {
+    pub fn path_extract(&self) -> (String, Vec<PostmanCollectionVariable>) {
+        let mut paths: Vec<String> = Vec::new();
+        let empty_vec = Vec::new();
+        let thevars = if self.variable.is_some() {
+            (self.variable).as_ref().unwrap()
+        } else {
+            &empty_vec
+        };
+        let mut vars: Vec<PostmanCollectionVariable> = Vec::new();
+        // for host in &self.host {
+        //     if host.starts_with(":") {
+        //         let variable = (&host[1..host.len()]).to_owned();
+        //         for v in thevars {
+        //             if v.key == variable {
+        //                 vars.push(v.clone());
+        //             }
+        //         }
+        //         paths.push(variable);
+        //     } else {
+        //         paths.push(host.clone());
+        //     }
+        // }
+        for path in &self.path {
+            if path.starts_with(":") {
+                let variable = (&path[1..path.len()]).to_owned();
+                for v in thevars {
+                    if v.key == variable {
+                        vars.push(v.clone());
+                    }
+                }
+                paths.push(format!("{{{}}}", variable));
+            } else {
+                paths.push(path.clone());
+            }
+        }
+        (format!("/{}", paths.join("/")), vars)
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionUrlQuery {
     key: String,
-    value: String,
+    value: serde_json::value::Value,
 }
 fn get_schema_to_string(schema: &OpenApi3Schema) -> String {
     let example_value = match schema {
@@ -136,7 +284,7 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                 if parameter._in == "query" {
                     query_vec.push(PostmanCollectionUrlQuery {
                         key: parameter.name.clone(),
-                        value: example_value,
+                        value: serde_json::value::Value::String(example_value),
                     })
                 } else if parameter._in == "header" {
                     let lc_name: String = parameter.name.clone().to_lowercase();
@@ -149,7 +297,7 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                     }
                     header_vec.push(PostmanCollectionHeader {
                         key: parameter.name.clone(),
-                        _type: "text".into(),
+                        _type: Some("text".into()),
                         value: the_value.unwrap(),
                     })
                 } else if parameter._in == "path" {
@@ -194,9 +342,11 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
             } else {
                 None
             };
-            let item_inner = PostmanCollectionItemInner {
+            let item_inner = PostmanCollectionItem {
                 name: path.clone(),
-                request: PostmanCollectionRequest {
+                item: None,
+                request: Some(PostmanCollectionRequest {
+                    auth: None,
                     url: PostmanCollectionUrl {
                         raw: format!("{}/{}", postman_convert_option.host.clone(), paths.join("/")),
                         host: vec![postman_convert_option.host.clone()],
@@ -206,8 +356,10 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                     },
                     body: body,
                     header: header_vec,
+                    description: None,
                     method: method.clone(),
-                }
+                }),
+                response: None,
             };
             match postman_collection_item_map.get_mut(&tag) {
                 Some(collection) => {
@@ -221,6 +373,8 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                         PostmanCollectionItem {
                             name: format!("{}{}", postman_convert_option.prepend_tag.clone(), tag),
                             item: Some(Box::new(vec![item_inner])),
+                            request: None,
+                            response: None,
                         },
                     );
                 }
@@ -233,7 +387,7 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
     PostmanCollection2c1 {
         info: PostmanCollectionInfo {
             name: openapi3.info.title.into(),
-            description: openapi3.info.description.into(),
+            description: Some(openapi3.info.description.into()),
             schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json".into(),
         },
         item: item_base.into()

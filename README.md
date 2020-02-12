@@ -7,7 +7,9 @@ The original import function in postman is not working as expected, this repo cu
 - map header value to your postman environment variable
 
 ## Usage
-cargo run -- -c config.example.json -o testfolder/postmancollection.json testfolder/microservice-swagger.json
+cargo run -- --stp -c config.example.json -o testfolder/postmancollection.json testfolder/microservice-swagger.json
+
+cargo run -- --pts -c api-lib-config.example.json -o testfolder/api-lib-swagger.json testfolder/api-lib-postman.v2.1.json
 
 ## Note
 This might not feature complete, we can slowly make it support more

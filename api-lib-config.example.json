@@ -1,0 +1,10 @@
+{
+    "servers": [{
+        "description": "server",
+        "url": "http://YOUR_SERVER_URL"
+    }],
+    "mapping": [{
+        "key": "{{POSTMAN_VARIABLE}}",
+        "value": "POSTMAN_VARIABLE_VALUE"
+    }]
+}

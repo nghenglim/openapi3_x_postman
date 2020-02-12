@@ -313,7 +313,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openapi3topostman"
+name = "openapi3_x_postman"
 version = "0.1.0"
 dependencies = [
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",

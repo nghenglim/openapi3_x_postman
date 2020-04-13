@@ -168,7 +168,8 @@ pub struct PostmanCollectionBodyOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionBodyOptionsRaw {
-    language: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostmanCollectionVariable {
@@ -279,6 +280,24 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
             let mut header_vec: Vec<PostmanCollectionHeader> = Vec::new();
             let mut query_vec: Vec<PostmanCollectionUrlQuery> = Vec::new();
             let mut variable_vec: Vec<PostmanCollectionVariable> = Vec::new();
+            if let Some(secu) = &operation.security {
+                if secu.len() > 0 {
+                    let paramname: String = "Authorization".to_owned();
+                    let lc_name = paramname.clone().to_lowercase();
+                    let mut the_value: Option<String> = Some("Bearer token".to_owned());
+                    for kv in postman_convert_option.map_header.clone() {
+                        if kv.key.clone().to_lowercase() == lc_name {
+                            the_value = Some(kv.value);
+                            break;
+                        }
+                    }
+                    header_vec.push(PostmanCollectionHeader {
+                        key: paramname,
+                        _type: Some("text".into()),
+                        value: the_value.unwrap(),
+                    })
+                }
+            }
             for parameter in &operation.parameters {
                 let example_value = get_schema_to_string(&parameter.schema);
                 if parameter._in == "query" {
@@ -323,7 +342,7 @@ pub fn to_postman_colletion_2c1(openapi3: OpenApi3, postman_convert_option: Post
                     raw: raw.into(),
                     options: Some(PostmanCollectionBodyOptions {
                         raw: PostmanCollectionBodyOptionsRaw {
-                            language: "json".into(),
+                            language: Some("json".into()),
                         }
                     })
                 })
